@@ -2,19 +2,9 @@ syntax = "proto3";
 
 package transaction_verification;
 
-service TransactionVerification {
-    rpc VerifyCreditCardFormat(VerifyCreditCardFormatRequest) returns (VerifyCreditCardFormatResponse) {}
-    rpc VerifyMandatoryUserData(VerifyMandatoryUserDataRequest) returns (VerifyMandatoryUserDataResponse) {}
-}
-
 message User {
     string name = 1;
     string contact = 2;
-    string address = 3;
-}
-
-message VectorClock {
-    map<string, int64> entries = 1;
 }
 
 message CreditCard {
@@ -24,39 +14,17 @@ message CreditCard {
 }
 
 message TransactionVerificationRequest {
-    string orderID = 1;
-    string title = 2;
-    User user = 3;
-    CreditCard creditCard = 4;
-    VectorClock vector_clock = 5;
+    User user = 1;
+    CreditCard creditCard = 2;
 }
 
 message TransactionVerificationResponse {
     bool is_valid = 1;
     string message = 2;
-    VectorClock vector_clock = 3;
 }
 
-message VerifyCreditCardFormatRequest {
-    string orderID = 1;
-    CreditCard creditCard = 2;
-    VectorClock vector_clock = 3;
-}
-
-message VerifyCreditCardFormatResponse {
-    bool is_valid = 1;
-    string message = 2;
-    VectorClock vector_clock = 3;
-}
-
-message VerifyMandatoryUserDataRequest {
-    string orderID = 1;
-    User user = 2; // User data including name, contact, and address
-    VectorClock vector_clock = 3;
-}
-
-message VerifyMandatoryUserDataResponse {
-    bool is_valid = 1;
-    string message = 2;
-    VectorClock vector_clock = 3;
+service TransactionVerificationService {
+    rpc VerifyUser(TransactionVerificationRequest) returns (TransactionVerificationResponse) {}
+    rpc VerifyCreditCard(TransactionVerificationRequest) returns (TransactionVerificationResponse) {}
+    rpc VerifyCreditCardInvalid(TransactionVerificationRequest) returns (TransactionVerificationResponse) {}
 }

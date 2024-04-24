@@ -1,9 +1,18 @@
+# Use an official Python runtime as the base image
 FROM python:3.11
+
+# Set the working directory in the container
+# Both the utils and src folders will be mounted as volumes, please see docker-compose.yaml
 WORKDIR /app
-# Add /app to PYTHONPATH
-ENV PYTHONPATH "${PYTHONPATH}:/app"
+
+# Copy the requirements file to the working directory
 COPY ./transaction_verification/requirements.txt .
+
+# Install the Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+# Install reloadium for hot reloading
+# This allows us to make changes to the code without having to rebuild the container
 RUN pip install reloadium
-EXPOSE 50052
+
+# Set the command to run the application
 CMD reloadium run "transaction_verification/src/app.py"

@@ -1,80 +1,74 @@
-import grpc
+# Importing necessary libraries
+from ast import List
 from concurrent import futures
-import logging
+import grpc
 import sys
 import os
+import datetime
+import logging
+
+from utils.vectorclock import VectorClock
+
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
 # Change these lines only if strictly needed.
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/transaction_verification'))
 sys.path.insert(0, utils_path)
+import transaction_verification_pb2
+import transaction_verification_pb2_grpc
 
-from utils.vector_clock import VectorClock
-from utils.pb.transaction_verification import transaction_verification_pb2_grpc, transaction_verification_pb2
+import datetime
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+class TransactionVerificationService(transaction_verification_pb2_grpc.TransactionVerificationServiceServicer):
+    def __init__(self):
+        self.vector_clock = VectorClock(node_id=self._get_unique_node_id()) 
+    def VerifyUser(self, request, context):
+        self._update_vector_clock(request)
 
-order_cache = {}
-
-def cache_order_data(order_id, data):
-    order_cache[order_id] = data
-
-class TransactionVerificationServiceImpl(transaction_verification_pb2_grpc.TransactionVerificationServicer):
-
-    def VerifyCreditCardFormat(self, request, context):
-
-        vc = VectorClock.from_proto(request.vector_clock)
-        vc.increment("transaction_verification_service")
-
-        card_number = request.creditCard.number.replace(" ", "").replace("-", "")
-        if len(card_number) == 16 and card_number.isdigit():
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
-            return transaction_verification_pb2.VerifyCreditCardFormatResponse(
-                is_valid=True,
-                message="Credit card format is valid",
-                vector_clock=updated_vector_clock
-            )
-        else:
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
-            return transaction_verification_pb2.VerifyCreditCardFormatResponse(
-                is_valid=False,
-                message="Credit card format is invalid",
-                vector_clock=updated_vector_clock
-            )
-
-    def VerifyMandatoryUserData(self, request, context):
-
-        vc = VectorClock.from_proto(request.vector_clock)
-        vc.increment("transaction_verification_service")
-
-        # Verify if mandatory user data (name, contact, address) is filled in
         user = request.user
-        if not all([user.name, user.contact, user.address]):
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
-            return transaction_verification_pb2.VerifyMandatoryUserDataResponse(
-                is_valid=False,
-                message="Mandatory user data is missing",
-                vector_clock=updated_vector_clock
-            )
+        if not user.name or not user.contact:
+            logging.info("User %s information is incomplete", user)
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=False, message="User information is incomplete")
         else:
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
-            return transaction_verification_pb2.VerifyMandatoryUserDataResponse(
-                is_valid=True,
-                message="Mandatory user data is valid",
-                vector_clock=updated_vector_clock
-            )
+            logging.info("User %s information is valid", user)
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=True, message="User information is valid")
+
+    def VerifyCreditCard(self, request, context):
+        self._update_vector_clock(request)
+
+        credit_card = request.creditCard
+        if not credit_card.number or not credit_card.expirationDate or not credit_card.cvv:
+            logging.info("Credit card %s information is incomplete", credit_card)
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=False, message="Credit card information is incomplete")
+        else:
+            logging.info("Credit card %s information is valid", credit_card)
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=True, message="Credit card information is valid")
+
+    def VerifyCreditCardInvalid(self, request, context):
+        self._update_vector_clock(request)
+        
+        credit_card = request.creditCard.expirationDate
+        exp_date = datetime.strptime(credit_card, "%Y-%m")
+        if datetime.now().date() >= exp_date.date():
+            logging.info("Credit card date %s has expired", exp_date)
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=False, message="Credit card has expired")
+        else:
+            logging.info("Credit card date %s is valid", exp_date)
+            return transaction_verification_pb2.TransactionVerificationResponse(is_valid=True, message="Invalid credit card expiration date")
+        
+    def _update_vector_clock(self, request):
+        client_vector_clock = VectorClock.FromString(request.client_vector_clock.SerializeToString())
+        self.vector_clock.merge(client_vector_clock)
+        self.vector_clock.increment(self.vector_clock.node_id)
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    transaction_verification_pb2_grpc.add_TransactionVerificationServicer_to_server(
-        TransactionVerificationServiceImpl(), server)
+    transaction_verification_pb2_grpc.add_TransactionVerificationServiceServicer_to_server(TransactionVerificationService(), server)
     server.add_insecure_port('[::]:50052')
     server.start()
-    logging.info("Transaction Verification Service running on port 50052")
+    logging.info("Transaction Verification Service started, running on port 50052")
     server.wait_for_termination()
-
 
 if __name__ == '__main__':
     serve()
