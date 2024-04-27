@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: books-database
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: books-database
+  template:
+    metadata:
+      labels:
+        app: books-database
+    spec:
+      containers:
+      - name: books-database
+        image: books-database:latest
+        ports:
+        - containerPort: 50055
