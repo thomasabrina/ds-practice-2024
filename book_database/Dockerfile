@@ -2,5 +2,5 @@ FROM python:3.11
 WORKDIR /app
 COPY ./book_database/requirements.txt .
 RUN pip install -r requirements.txt
-COPY src/ .
+# COPY src/ .
 CMD ["python", "books_db_service.py"]
