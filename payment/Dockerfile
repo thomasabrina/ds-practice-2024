@@ -8,7 +8,7 @@ WORKDIR /app
 ENV PYTHONPATH "${PYTHONPATH}:/app"
 
 # Copy the requirements file and install dependencies
-COPY ./payment/src/requirements.txt .
+COPY ./payment/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the local directory contents into the container at /app
