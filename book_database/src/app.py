@@ -21,21 +21,13 @@ class BooksDatabaseServicer(books_pb2_grpc.BooksDatabaseServicer, RaftNode):
     def log_state(key, state, version):
        with open('books_db.log', 'a') as log_file:
            log_file.write(f"{key},{state},{version}\n")
-
-    def Prepare(self, request, context):
-       if request.key in self.data_store and 'lock' not in self.data_store[request.key]:
-           self.data_store[request.key]['lock'] = True
-           self.log_state(request.key, 'prepared', self.version)
-           return books_pb2.PrepareResponse(success=True)
-       else:
-           return books_pb2.PrepareResponse(success=False)
     
     def recover_state(self):
        try:
            with open('books_db.log', 'r') as log_file:
                for line in log_file:
                    key, state, version = line.strip().split(',')
-                   if state == 'prepared':
+                   if state == 'prepare':
                        self.data_store[key] = {'lock': True}
        except FileNotFoundError:
            print("No recovery file found.")
@@ -88,6 +80,7 @@ class BooksDatabaseServicer(books_pb2_grpc.BooksDatabaseServicer, RaftNode):
         if request.key in self.data_store and 'lock' not in self.data_store[request.key]:
             self.data_store[request.key]['lock'] = True
             print(f"Locked {request.key} for writing")
+            self.log_state(request.key, 'prepare')
             return books_pb2.PrepareResponse(success=True)
         else:
             return books_pb2.PrepareResponse(success=False)
@@ -97,6 +90,7 @@ class BooksDatabaseServicer(books_pb2_grpc.BooksDatabaseServicer, RaftNode):
         if request.key in self.data_store and 'lock' in self.data_store[request.key]:
             print(f"Committing write to {request.key}")
             self.data_store[request.key].pop('lock', None)  # Remove lock
+            self.log_state(request.key, 'commit')
             return books_pb2.CommitResponse(success=True)
         else:
             return books_pb2.CommitResponse(success=False)
@@ -106,6 +100,7 @@ class BooksDatabaseServicer(books_pb2_grpc.BooksDatabaseServicer, RaftNode):
         if request.key in self.data_store and 'lock' in self.data_store[request.key]:
             print(f"Aborting write to {request.key}")
             self.data_store[request.key].pop('lock', None)  # Remove lock
+            self.log_state(request.key, 'abort')
             return books_pb2.AbortResponse(success=True)
         else:
             return books_pb2.AbortResponse(success=False)

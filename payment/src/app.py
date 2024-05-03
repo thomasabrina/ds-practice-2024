@@ -28,7 +28,7 @@ class PaymentServiceImpl(payment_pb2_grpc.PaymentServiceServicer):
             with open('payment_service.log', 'r') as log_file:
                 for line in log_file:
                     log_entry = json.loads(line)
-                    if log_entry['state'] == 'prepared':
+                    if log_entry['state'] == 'prepare':
                         self.reserved_funds[log_entry['order_id']] = log_entry['amount']
         except FileNotFoundError:
             print("No recovery file found. Starting fresh.")
@@ -39,6 +39,7 @@ class PaymentServiceImpl(payment_pb2_grpc.PaymentServiceServicer):
             if request.amount > 0:
                 self.reserved_funds[request.orderId] = request.amount
                 print(f"Reserved ${request.amount} for order {request.orderId}")
+                self.log_state(request.key, 'prepare')
                 return payment_pb2.PrepareResponse(success=True)
             else:
                 return payment_pb2.PrepareResponse(success=False)
@@ -49,6 +50,7 @@ class PaymentServiceImpl(payment_pb2_grpc.PaymentServiceServicer):
             if request.orderId in self.reserved_funds:
                 amount = self.reserved_funds.pop(request.orderId)
                 print(f"Processed payment of ${amount} for order {request.orderId}")
+                self.log_state(request.key, 'commit')
                 return payment_pb2.CommitResponse(success=True)
             else:
                 return payment_pb2.CommitResponse(success=False)
@@ -59,6 +61,7 @@ class PaymentServiceImpl(payment_pb2_grpc.PaymentServiceServicer):
             if request.orderId in self.reserved_funds:
                 amount = self.reserved_funds.pop(request.orderId)
                 print(f"Payment aborted for order {request.orderId}, ${amount} released")
+                self.log_state(request.key, 'abort')
                 return payment_pb2.AbortResponse(success=True)
             else:
                 return payment_pb2.AbortResponse(success=False)
