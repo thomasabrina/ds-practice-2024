@@ -13,7 +13,7 @@ utils_path_order_queue = os.path.abspath(os.path.join(FILE, '../../../utils/pb/o
 sys.path.insert(0, utils_path_order_queue)
 
 from utils.pb.order_queue import order_queue_pb2, order_queue_pb2_grpc
-from utils.vector_clock import VectorClock  
+# from utils.vector_clock import VectorClock  
 
 class OrderQueueService(order_queue_pb2_grpc.OrderQueueServicer):
     def __init__(self):
@@ -35,8 +35,8 @@ class OrderQueueService(order_queue_pb2_grpc.OrderQueueServicer):
             return order_queue_pb2.ClearLeaderResponse() 
 
     def Enqueue(self, request, context):
-        vc = VectorClock.from_proto(request.vector_clock)
-        vc.increment("order_queue_service")
+        # vc = VectorClock.from_proto(request.vector_clock)
+        # vc.increment("order_queue_service")
 
         # Determine the priority of the order
         # The priority is related to the number of books (more books = higher priority)
@@ -45,13 +45,13 @@ class OrderQueueService(order_queue_pb2_grpc.OrderQueueServicer):
 
         # Use a tuple (priority, request, vc) to maintain the queue
         with self.leader_lock:
-            heapq.heappush(self.order_queue, (priority, request, vc))
+            heapq.heappush(self.order_queue, (priority, request))
 
         print(f"Order {request.orderId} enqueued with priority {priority}")
         return order_queue_pb2.OrderResponse(
             success=True, 
-            message="Order enqueued successfully.",
-            vector_clock=vc.to_proto(order_queue_pb2.VectorClock)
+            message="Order enqueued successfully."
+            # vector_clock=vc.to_proto(order_queue_pb2.VectorClock)
         )
 
     def Dequeue(self, request, context):
@@ -59,14 +59,14 @@ class OrderQueueService(order_queue_pb2_grpc.OrderQueueServicer):
             if request.executorId != self.current_leader:
                 return order_queue_pb2.OrderRequest()
             if self.order_queue:
-                order, vc = self.order_queue.pop(0)
-                vc.increment("order_queue_service")
+                order = self.order_queue.pop(0)
+                # vc.increment("order_queue_service")
                 print(f"Order {order.orderId} dequeued")
                 return order_queue_pb2.OrderRequest(
                     orderId=order.orderId,
                     userId=order.userId,
-                    bookTitles=order.bookTitles,
-                    vector_clock=vc.to_proto(order_queue_pb2.VectorClock)
+                    bookTitles=order.bookTitles
+                    # vector_clock=vc.to_proto(order_queue_pb2.VectorClock)
                 )
             else:
                 return order_queue_pb2.OrderRequest()

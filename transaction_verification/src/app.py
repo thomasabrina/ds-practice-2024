@@ -10,7 +10,7 @@ FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/transaction_verification'))
 sys.path.insert(0, utils_path)
 
-from utils.vector_clock import VectorClock
+# from utils.vector_clock import VectorClock
 from utils.pb.transaction_verification import transaction_verification_pb2_grpc, transaction_verification_pb2
 
 # Configure logging
@@ -25,45 +25,45 @@ class TransactionVerificationServiceImpl(transaction_verification_pb2_grpc.Trans
 
     def VerifyCreditCardFormat(self, request, context):
 
-        vc = VectorClock.from_proto(request.vector_clock)
-        vc.increment("transaction_verification_service")
+        # vc = VectorClock.from_proto(request.vector_clock)
+        # vc.increment("transaction_verification_service")
 
         card_number = request.creditCard.number.replace(" ", "").replace("-", "")
         if len(card_number) == 16 and card_number.isdigit():
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
+            # updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
             return transaction_verification_pb2.VerifyCreditCardFormatResponse(
                 is_valid=True,
                 message="Credit card format is valid",
-                vector_clock=updated_vector_clock
+                # vector_clock=updated_vector_clock
             )
         else:
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
+            # updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
             return transaction_verification_pb2.VerifyCreditCardFormatResponse(
                 is_valid=False,
                 message="Credit card format is invalid",
-                vector_clock=updated_vector_clock
+                # vector_clock=updated_vector_clock
             )
 
     def VerifyMandatoryUserData(self, request, context):
 
-        vc = VectorClock.from_proto(request.vector_clock)
-        vc.increment("transaction_verification_service")
+        # vc = VectorClock.from_proto(request.vector_clock)
+        # vc.increment("transaction_verification_service")
 
         # Verify if mandatory user data (name, contact, address) is filled in
         user = request.user
         if not all([user.name, user.contact, user.address]):
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
+            # updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
             return transaction_verification_pb2.VerifyMandatoryUserDataResponse(
                 is_valid=False,
                 message="Mandatory user data is missing",
-                vector_clock=updated_vector_clock
+                # vector_clock=updated_vector_clock
             )
         else:
-            updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
+            # updated_vector_clock = vc.to_proto(transaction_verification_pb2.VectorClock)
             return transaction_verification_pb2.VerifyMandatoryUserDataResponse(
                 is_valid=True,
                 message="Mandatory user data is valid",
-                vector_clock=updated_vector_clock
+                # vector_clock=updated_vector_clock
             )
 
 def serve():

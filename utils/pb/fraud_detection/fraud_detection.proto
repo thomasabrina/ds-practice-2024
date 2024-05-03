@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package fraud_detection;
 
-message VectorClock {
-    map<string, int64> entries = 1;
-}
+// message VectorClock {
+//     map<string, int64> entries = 1;
+// }
 
 service FraudDetection {
     // Checks credit card data for fraud
@@ -16,13 +16,13 @@ service FraudDetection {
 message CheckUserDataRequest {
     string orderID = 1;
     User user = 2;
-    VectorClock vector_clock = 3;
+    // VectorClock vector_clock = 3;
 }
 
 message CheckUserDataResponse {
     bool is_fraud = 1;
     string reason = 2;
-    VectorClock vector_clock = 3;
+    // VectorClock vector_clock = 3;
 }
 
 // Renamed from FraudDetectionRequest to specifically indicate checking credit card for fraud
@@ -30,14 +30,14 @@ message FraudDetectionRequest {
     string orderID = 1;
     string number = 2; // Credit card number
     string expirationDate = 3; // Credit card expiration date
-    VectorClock vector_clock = 4;
+    // VectorClock vector_clock = 4;
 }
 
 // Response for checking credit card data for fraud
 message FraudDetectionResponse {
     bool is_fraud = 1;
     string reason = 2;
-    VectorClock vector_clock = 3;
+    // VectorClock vector_clock = 3;
 }
 
 message User {

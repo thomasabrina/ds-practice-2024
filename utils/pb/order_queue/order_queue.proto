@@ -10,22 +10,22 @@ service OrderQueue {
   rpc ClearCurrentLeader(ClearLeaderRequest) returns (ClearLeaderResponse) {} // Added line
 }
 
-message VectorClock {
-  map<string, int64> entries = 1;
-}
+// message VectorClock {
+//   map<string, int64> entries = 1;
+// }
 
 message OrderRequest {
     string orderId = 1;
     string userId = 2; 
     repeated string bookTitles = 3; 
-    VectorClock vector_clock = 4;
+    // VectorClock vector_clock = 4;
 }
 
 // The response message indicating the result of enqueueing.
 message OrderResponse {
   bool success = 1;
   string message = 2;
-  VectorClock vector_clock = 3; 
+  // VectorClock vector_clock = 3; 
 }
 
 // The request message for dequeueing.

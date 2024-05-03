@@ -13,7 +13,7 @@ import grpc
 import datetime
 from concurrent import futures
 
-from utils.vector_clock import VectorClock
+# from utils.vector_clock import VectorClock
 from utils.pb.fraud_detection import fraud_detection_pb2_grpc, fraud_detection_pb2
 
 # Configure logging
@@ -24,30 +24,30 @@ class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServicer)
 
     def CheckUserDataForFraud(self, request, context):
 
-        vc = VectorClock.from_proto(request.vector_clock)
-        vc.increment("fraud_detection_service")
+        # vc = VectorClock.from_proto(request.vector_clock)
+        # vc.increment("fraud_detection_service")
 
         # Reject if user name is empty or contact is missing
         if not request.user.name or not request.user.contact:
             # Convert the VectorClock instance back to the protobuf format for the response
-            updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
+            # updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
             return fraud_detection_pb2.CheckUserDataResponse(
                 is_fraud=True,
                 reason="Missing user name or contact",
-                vector_clock=updated_vector_clock
+                # vector_clock=None
             )
 
-        updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
+        # updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
         return fraud_detection_pb2.CheckUserDataResponse(
             is_fraud=False,
             reason="User data looks good",
-            vector_clock=updated_vector_clock
+            # vector_clock=None
         )
 
     def CheckCreditCardForFraud(self, request, context):
 
-        vc = VectorClock.from_proto(request.vector_clock)
-        vc.increment("fraud_detection_service")
+        # vc = VectorClock.from_proto(request.vector_clock)
+        # vc.increment("fraud_detection_service")
 
         logging.info(f"OrderID {request.orderID} - Current Vector Clock: {vc.get_clock()}")
 
@@ -56,20 +56,20 @@ class FraudDetectionServiceImpl(fraud_detection_pb2_grpc.FraudDetectionServicer)
         if expiry_date < current_date:
             logging.info("Transaction detected as a fraud due to expired card")
             # Include the updated vector clock in the response
-            updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
+            # updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
             return fraud_detection_pb2.FraudDetectionResponse(
                 is_fraud=True,
                 reason="Card is expired",
-                vector_clock=updated_vector_clock
+                # vector_clock=None
             )
         else:
             logging.info(f"Transaction detected no fraud")
             # Include the updated vector clock in the response
-            updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
+            # updated_vector_clock = vc.to_proto(fraud_detection_pb2.VectorClock)
             return fraud_detection_pb2.FraudDetectionResponse(
                 is_fraud=False,
                 reason="Approved",
-                vector_clock=updated_vector_clock
+                # vector_clock=None
             )
 
 

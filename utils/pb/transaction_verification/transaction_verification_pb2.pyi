@@ -1,4 +1,3 @@
-from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
@@ -15,19 +14,6 @@ class User(_message.Message):
     address: str
     def __init__(self, name: _Optional[str] = ..., contact: _Optional[str] = ..., address: _Optional[str] = ...) -> None: ...
 
-class VectorClock(_message.Message):
-    __slots__ = ("entries",)
-    class EntriesEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: int
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
-    ENTRIES_FIELD_NUMBER: _ClassVar[int]
-    entries: _containers.ScalarMap[str, int]
-    def __init__(self, entries: _Optional[_Mapping[str, int]] = ...) -> None: ...
-
 class CreditCard(_message.Message):
     __slots__ = ("number", "expirationDate", "cvv")
     NUMBER_FIELD_NUMBER: _ClassVar[int]
@@ -39,65 +25,53 @@ class CreditCard(_message.Message):
     def __init__(self, number: _Optional[str] = ..., expirationDate: _Optional[str] = ..., cvv: _Optional[str] = ...) -> None: ...
 
 class TransactionVerificationRequest(_message.Message):
-    __slots__ = ("orderID", "title", "user", "creditCard", "vector_clock")
+    __slots__ = ("orderID", "title", "user", "creditCard")
     ORDERID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
     CREDITCARD_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
     orderID: str
     title: str
     user: User
     creditCard: CreditCard
-    vector_clock: VectorClock
-    def __init__(self, orderID: _Optional[str] = ..., title: _Optional[str] = ..., user: _Optional[_Union[User, _Mapping]] = ..., creditCard: _Optional[_Union[CreditCard, _Mapping]] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
+    def __init__(self, orderID: _Optional[str] = ..., title: _Optional[str] = ..., user: _Optional[_Union[User, _Mapping]] = ..., creditCard: _Optional[_Union[CreditCard, _Mapping]] = ...) -> None: ...
 
 class TransactionVerificationResponse(_message.Message):
-    __slots__ = ("is_valid", "message", "vector_clock")
+    __slots__ = ("is_valid", "message")
     IS_VALID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
     is_valid: bool
     message: str
-    vector_clock: VectorClock
-    def __init__(self, is_valid: bool = ..., message: _Optional[str] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
+    def __init__(self, is_valid: bool = ..., message: _Optional[str] = ...) -> None: ...
 
 class VerifyCreditCardFormatRequest(_message.Message):
-    __slots__ = ("orderID", "creditCard", "vector_clock")
+    __slots__ = ("orderID", "creditCard")
     ORDERID_FIELD_NUMBER: _ClassVar[int]
     CREDITCARD_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
     orderID: str
     creditCard: CreditCard
-    vector_clock: VectorClock
-    def __init__(self, orderID: _Optional[str] = ..., creditCard: _Optional[_Union[CreditCard, _Mapping]] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
+    def __init__(self, orderID: _Optional[str] = ..., creditCard: _Optional[_Union[CreditCard, _Mapping]] = ...) -> None: ...
 
 class VerifyCreditCardFormatResponse(_message.Message):
-    __slots__ = ("is_valid", "message", "vector_clock")
+    __slots__ = ("is_valid", "message")
     IS_VALID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
     is_valid: bool
     message: str
-    vector_clock: VectorClock
-    def __init__(self, is_valid: bool = ..., message: _Optional[str] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
+    def __init__(self, is_valid: bool = ..., message: _Optional[str] = ...) -> None: ...
 
 class VerifyMandatoryUserDataRequest(_message.Message):
-    __slots__ = ("orderID", "user", "vector_clock")
+    __slots__ = ("orderID", "user")
     ORDERID_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
     orderID: str
     user: User
-    vector_clock: VectorClock
-    def __init__(self, orderID: _Optional[str] = ..., user: _Optional[_Union[User, _Mapping]] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
+    def __init__(self, orderID: _Optional[str] = ..., user: _Optional[_Union[User, _Mapping]] = ...) -> None: ...
 
 class VerifyMandatoryUserDataResponse(_message.Message):
-    __slots__ = ("is_valid", "message", "vector_clock")
+    __slots__ = ("is_valid", "message")
     IS_VALID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    VECTOR_CLOCK_FIELD_NUMBER: _ClassVar[int]
     is_valid: bool
     message: str
-    vector_clock: VectorClock
-    def __init__(self, is_valid: bool = ..., message: _Optional[str] = ..., vector_clock: _Optional[_Union[VectorClock, _Mapping]] = ...) -> None: ...
+    def __init__(self, is_valid: bool = ..., message: _Optional[str] = ...) -> None: ...

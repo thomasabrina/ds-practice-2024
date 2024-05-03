@@ -15,61 +15,81 @@ sys.path.insert(0, utils_path_order_executor)
 utils_path_order_queue = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_queue'))
 sys.path.insert(0, utils_path_order_queue)
 
+utils_path_books = os.path.abspath(os.path.join(FILE, '../../../utils/pb/books'))
+sys.path.insert(0, utils_path_books)
+
+utils_path_payment = os.path.abspath(os.path.join(FILE, '../../../utils/pb/payment'))
+sys.path.insert(0, utils_path_payment)
+
 from utils.pb.order_executor import order_executor_pb2, order_executor_pb2_grpc
 from utils.pb.order_queue import order_queue_pb2, order_queue_pb2_grpc
+from utils.pb.books import books_pb2, books_pb2_grpc
+from utils.pb.payment import payment_pb2, payment_pb2_grpc
 
 class OrderExecutor(order_executor_pb2_grpc.OrderExecutorServicer):
     def __init__(self, executor_id):
         self.executor_id = executor_id
+        self.books_db_channel = grpc.insecure_channel('localhost:50051')  
+        self.books_db_stub = books_pb2_grpc.BooksDatabaseStub(self.books_db_channel)
+        self.payment_channel = grpc.insecure_channel('localhost:50056')  
+        self.payment_stub = payment_pb2_grpc.PaymentServiceStub(self.payment_channel)
 
     def request_leadership(self):
         with grpc.insecure_channel('localhost:50054') as channel:
             order_queue_stub = order_queue_pb2_grpc.OrderQueueStub(channel)
             response = order_queue_stub.ElectLeader(order_queue_pb2.ElectionRequest(executorId=self.executor_id))
             return response.isLeader
-
+        
     def ExecuteOrder(self, request, context):
-        # First, request leadership
         if self.request_leadership():
-            # If this instance is the leader, proceed to connect to the Order Queue service
-            with grpc.insecure_channel('localhost:50054') as channel:
-                order_queue_stub = order_queue_pb2_grpc.OrderQueueStub(channel)
-                # Attempt to dequeue an order
-                dequeued_order = order_queue_stub.Dequeue(order_queue_pb2.DequeueRequest())
-                if dequeued_order.orderId:
-                    print(f"Order {dequeued_order.orderId} is being executed...")
-                    # Placeholder for actual execution logic
-                    return order_executor_pb2.ExecuteOrderResponse(success=True, message="Order executed")
+            order_queue_stub = order_queue_pb2_grpc.OrderQueueStub(self.books_db_channel)
+            dequeued_order = order_queue_stub.Dequeue(order_queue_pb2.DequeueRequest())
+            if dequeued_order.orderId:
+                # Read current stock from Books Database
+                read_response = self.books_db_stub.Read(books_pb2.ReadRequest(key=dequeued_order.bookId))
+                current_stock = int(read_response.value)
+                new_stock = current_stock - dequeued_order.quantity
+
+                # Initiate 2PC
+                if self.perform_two_phase_commit(dequeued_order.bookId, dequeued_order.quantity, dequeued_order.quantity * 10):  # Example price calculation
+                    print(f"Order {dequeued_order.orderId} executed, stock updated.")
+                    return order_executor_pb2.ExecuteOrderResponse(success=True, message="Order executed and stock updated")
                 else:
-                    return order_executor_pb2.ExecuteOrderResponse(success=False, message="No order to execute")
+                    print("Transaction aborted due to preparation failure.")
+                    return order_executor_pb2.ExecuteOrderResponse(success=False, message="Failed to prepare transaction")
+            else:
+                return order_executor_pb2.ExecuteOrderResponse(success=False, message="No order to execute")
         else:
-            # If not the leader, do not attempt to execute orders
             print("Not the leader, skipping execution.")
             return order_executor_pb2.ExecuteOrderResponse(success=False, message="Not the leader")
-        
-    def poll_and_execute_orders(self):
-        while True:
-            is_leader = self.request_leadership()
-            if is_leader:
-                with grpc.insecure_channel('localhost:50054') as channel:
-                    order_queue_stub = order_queue_pb2_grpc.OrderQueueStub(channel)
-                    # Include executorId in DequeueRequest
-                    dequeued_order_response = order_queue_stub.Dequeue(order_queue_pb2.DequeueRequest(executorId=self.executor_id))
-                    if dequeued_order_response.orderId:
-                        print(f"Order {dequeued_order_response.orderId} dequeued for execution")
 
-                        # Release leadership before executing the order
-                        order_queue_stub.ClearCurrentLeader(order_queue_pb2.ClearLeaderRequest())
-                        print("Leadership released before executing the order.")
+    def perform_two_phase_commit(self, book_key, quantity, price):
+        try:
+            db_response = self.books_db_stub.Prepare(
+                books_pb2.PrepareRequest(key=book_key, amount=quantity),
+                timeout=10  # Timeout after 10 seconds
+            )
+            payment_response = self.payment_stub.Prepare(
+                payment_pb2.PrepareRequest(amount=price),
+                timeout=10  # Timeout after 10 seconds
+            )
 
-                        # Simulate order execution
-                        print(f"Executing order {dequeued_order_response.orderId}")
-                        print(f"Order {dequeued_order_response.orderId} executed")
-                    else:
-                        print("No orders to execute.")
+            if db_response.success and payment_response.success:
+                self.books_db_stub.Commit(books_pb2.CommitRequest(key=book_key))
+                self.payment_stub.Commit(payment_pb2.CommitRequest())
+                return True
             else:
-                print("Not the leader, skipping execution.")
-            time.sleep(5)
+                raise Exception("Preparation failed in one of the services.")
+        except grpc.RpcError as e:
+            print(f"RPC failed: {e}")
+            self.books_db_stub.Abort(books_pb2.AbortRequest(key=book_key))
+            self.payment_stub.Abort(payment_pb2.AbortRequest())
+            return False
+        except Exception as e:
+            print(f"Error during 2PC: {e}")
+            self.books_db_stub.Abort(books_pb2.AbortRequest(key=book_key))
+            self.payment_stub.Abort(payment_pb2.AbortRequest())
+            return False
 
 
 def serve():

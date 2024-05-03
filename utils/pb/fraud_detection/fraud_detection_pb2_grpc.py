@@ -6,7 +6,11 @@ import fraud_detection_pb2 as fraud__detection__pb2
 
 
 class FraudDetectionStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """message VectorClock {
+    map<string, int64> entries = 1;
+    }
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -27,7 +31,11 @@ class FraudDetectionStub(object):
 
 
 class FraudDetectionServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """message VectorClock {
+    map<string, int64> entries = 1;
+    }
+
+    """
 
     def CheckCreditCardForFraud(self, request, context):
         """Checks credit card data for fraud
@@ -64,7 +72,11 @@ def add_FraudDetectionServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class FraudDetection(object):
-    """Missing associated documentation comment in .proto file."""
+    """message VectorClock {
+    map<string, int64> entries = 1;
+    }
+
+    """
 
     @staticmethod
     def CheckCreditCardForFraud(request,
