@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the local directory contents into the container at /app
 COPY ./payment/src /app
 COPY ./utils /app/utils
+COPY ./utils/pb/payment/*.py /app/utils/pb/payment/
 
 # Make port 50056 available to the world outside this container
 EXPOSE 50056

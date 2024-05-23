@@ -2,8 +2,9 @@ import logging
 import sys
 import os
 import grpc
+import socket
 from concurrent import futures
-from pyraft.raft import RaftNode, RaftServer
+from pyraft.raft import RaftNode
 
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/books'))
@@ -17,6 +18,21 @@ class BooksDatabaseServicer(books_pb2_grpc.BooksDatabaseServicer, RaftNode):
        self.data_store = {}
        self.version = 0
        self.recover_state()
+       self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+       self.socket.bind((host, port))
+       self.socket.listen()
+
+    def start_server(self):
+        print(f"Server starting on {self.host}:{self.port}")
+        while True:
+            conn, addr = self.socket.accept()
+            with conn:
+                print(f"Connected by {addr}")
+                while True:
+                    data = conn.recv(1024)
+                    if not data:
+                        break
+                    conn.sendall(data)
 
     def log_state(key, state, version):
        with open('books_db.log', 'a') as log_file:
@@ -115,7 +131,7 @@ def serve():
     host = os.getenv("HOST", "localhost")
     port = int(os.getenv("PORT", 50051))
     servicer = BooksDatabaseServicer(node_id, peers, host, port)
-    servicer.start_raft_server()
+    servicer.start_server()
 
     grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     books_pb2_grpc.add_BooksDatabaseServicer_to_server(servicer, grpc_server)
