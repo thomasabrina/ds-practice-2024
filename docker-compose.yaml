@@ -190,6 +190,16 @@ services:
     networks:
       - raft_network
 
+  services:
+  observability:
+    image: grafana/otel-lgtm
+    ports:
+      - "3000:3000"  # Grafana UI
+      - "4317:4317"  # OpenTelemetry gRPC endpoint
+      - "4318:4318"  # OpenTelemetry HTTP endpoint
+    environment:
+      - OTEL_METRIC_EXPORT_INTERVAL=1000
+
 networks:
   raft_network:
     driver: bridge

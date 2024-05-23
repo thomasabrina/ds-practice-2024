@@ -5,6 +5,17 @@ import grpc
 import logging
 import uuid
 
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+trace.set_tracer_provider(TracerProvider())
+tracer = trace.get_tracer(__name__)
+
+otlp_exporter = OTLPSpanExporter(endpoint="http://observability:4317")
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
+
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 
 # utils_path_fraud = os.path.abspath(os.path.join(FILE, '../../../utils/pb/fraud_detection'))
