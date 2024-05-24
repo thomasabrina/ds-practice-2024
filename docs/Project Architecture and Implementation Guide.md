@@ -62,6 +62,35 @@ The `ds-practice-2024` project simulates a distributed system for an online book
 - Containerize each service using Docker, with configurations specified in `docker-compose.yaml`.
 - Use Docker Compose to orchestrate the services, ensuring they are networked together for communication.
 
+## Updated Service Descriptions
+
+### Payment Service
+The Payment Service is responsible for handling financial transactions within the system. It operates on port 50056 and uses gRPC for communication.
+
+#### Key Features:
+- **Transaction Management**: Supports operations to prepare, commit, and abort financial transactions.
+- **Concurrency Control**: Uses locks to ensure thread-safe operations on financial resources.
+- **State Recovery**: Capable of recovering its state from a log file to maintain consistency even after restarts.
+
+#### Operations:
+- **Prepare**: Reserves funds for a transaction.
+- **Commit**: Finalizes the transaction and processes the payment.
+- **Abort**: Rolls back the transaction and releases the reserved funds.
+
+### Book Database Service
+The Book Database Service manages the storage and retrieval of book data. It includes a Raft consensus mechanism for distributed consensus and operates on port 50051.
+
+#### Key Features:
+- **Distributed Consensus**: Implements the Raft algorithm to ensure consistency across multiple nodes.
+- **Direct Socket Communication**: Handles direct client connections for data operations.
+- **State Recovery**: Recovers its state from a log file to ensure data consistency.
+
+#### Operations:
+- **Read**: Retrieves book data based on a key.
+- **Write**: Updates or adds new book data.
+- **IncrementStock**: Increases the stock count for a book.
+- **DecrementStock**: Decreases the stock count for a book if sufficient stock is available.
+
 ## Conclusion
 
 This guide provides a comprehensive overview of the architecture and implementation steps for the `ds-practice-2024` project. It highlights the system's use of REST and gRPC for communication, the implementation of a priority queue for order processing, and the dynamic leader election mechanism in the Order Executor Service.
