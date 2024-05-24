@@ -9,6 +9,8 @@ import time
 
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 
+# Dynamically insert paths to the protocol buffer utilities for various services.
+# This allows the application to access the generated protobuf classes for interacting with gRPC services.
 utils_path_order_executor = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_executor'))
 sys.path.insert(0, utils_path_order_executor)
 
@@ -28,6 +30,8 @@ from utils.pb.payment import payment_pb2, payment_pb2_grpc
 
 class OrderExecutor(order_executor_pb2_grpc.OrderExecutorServicer):
     def __init__(self, executor_id):
+        # Initialize the OrderExecutor with unique executor ID and set up gRPC channels and stubs for communication.
+        logging.info(f"Initializing OrderExecutor with ID {executor_id}")
         self.executor_id = executor_id
         self.books_db_channel = grpc.insecure_channel('localhost:50051')  
         self.books_db_stub = books_pb2_grpc.BooksDatabaseStub(self.books_db_channel)
@@ -35,13 +39,19 @@ class OrderExecutor(order_executor_pb2_grpc.OrderExecutorServicer):
         self.payment_stub = payment_pb2_grpc.PaymentServiceStub(self.payment_channel)
 
     def request_leadership(self):
+        # Request leadership status from the Order Queue service to determine if this instance can execute orders.
+        logging.info("Requesting leadership status.")
         with grpc.insecure_channel('localhost:50054') as channel:
             order_queue_stub = order_queue_pb2_grpc.OrderQueueStub(channel)
             response = order_queue_stub.ElectLeader(order_queue_pb2.ElectionRequest(executorId=self.executor_id))
+            logging.info(f"Leadership status received: {response.isLeader}")
             return response.isLeader
         
     def ExecuteOrder(self, request, context):
+        logging.info("Attempting to execute order.")
         if self.request_leadership():
+            # Main method to execute an order if this instance is the leader.
+            # It involves checking leadership, dequeuing an order, checking stock, and performing a two-phase commit.
             order_queue_stub = order_queue_pb2_grpc.OrderQueueStub(self.books_db_channel)
             dequeued_order = order_queue_stub.Dequeue(order_queue_pb2.DequeueRequest())
             if dequeued_order.orderId:
@@ -53,17 +63,25 @@ class OrderExecutor(order_executor_pb2_grpc.OrderExecutorServicer):
                 # Initiate 2PC
                 if self.perform_two_phase_commit(dequeued_order.bookId, dequeued_order.quantity, dequeued_order.quantity * 10):  # Example price calculation
                     print(f"Order {dequeued_order.orderId} executed, stock updated.")
-                    return order_executor_pb2.ExecuteOrderResponse(success=True, message="Order executed and stock updated")
+                    response = order_executor_pb2.ExecuteOrderResponse(success=True, message="Order executed and stock updated")
+                    logging.info(f"Order {dequeued_order.orderId} execution status: {response.message}")
+                    return response
                 else:
                     print("Transaction aborted due to preparation failure.")
-                    return order_executor_pb2.ExecuteOrderResponse(success=False, message="Failed to prepare transaction")
+                    response = order_executor_pb2.ExecuteOrderResponse(success=False, message="Failed to prepare transaction")
+                    logging.info(f"Order {dequeued_order.orderId} execution status: {response.message}")
+                    return response
             else:
-                return order_executor_pb2.ExecuteOrderResponse(success=False, message="No order to execute")
+                response = order_executor_pb2.ExecuteOrderResponse(success=False, message="No order to execute")
+                logging.info(f"Order {dequeued_order.orderId} execution status: {response.message}")
+                return response
         else:
-            print("Not the leader, skipping execution.")
+            logging.warning("Not the leader, skipping execution.")
             return order_executor_pb2.ExecuteOrderResponse(success=False, message="Not the leader")
 
     def perform_two_phase_commit(self, book_key, quantity, price):
+        # Perform a two-phase commit across the Books Database and Payment services to ensure data consistency.
+        logging.info("Starting two-phase commit.")
         try:
             db_response = self.books_db_stub.Prepare(
                 books_pb2.PrepareRequest(key=book_key, amount=quantity),
@@ -77,29 +95,31 @@ class OrderExecutor(order_executor_pb2_grpc.OrderExecutorServicer):
             if db_response.success and payment_response.success:
                 self.books_db_stub.Commit(books_pb2.CommitRequest(key=book_key))
                 self.payment_stub.Commit(payment_pb2.CommitRequest())
+                logging.info("Two-phase commit successful.")
                 return True
             else:
                 raise Exception("Preparation failed in one of the services.")
         except grpc.RpcError as e:
-            print(f"RPC failed: {e}")
+            logging.error(f"RPC failed: {e}")
             self.books_db_stub.Abort(books_pb2.AbortRequest(key=book_key))
             self.payment_stub.Abort(payment_pb2.AbortRequest())
             return False
         except Exception as e:
-            print(f"Error during 2PC: {e}")
+            logging.error(f"Error during 2PC: {e}")
             self.books_db_stub.Abort(books_pb2.AbortRequest(key=book_key))
             self.payment_stub.Abort(payment_pb2.AbortRequest())
             return False
 
 
 def serve():
+    logging.info("Starting Order Executor service.")
     executor_id = socket.gethostname()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     executor_instance = OrderExecutor(executor_id)
     order_executor_pb2_grpc.add_OrderExecutorServicer_to_server(executor_instance, server)
     server.add_insecure_port('[::]:50055')
     server.start()
-    print(f"Order Executor {executor_id} running on port 50055")
+    logging.info(f"Order Executor {executor_id} running on port 50055")
     # Start the polling in a background thread
     threading.Thread(target=executor_instance.poll_and_execute_orders, daemon=True).start()
     server.wait_for_termination()

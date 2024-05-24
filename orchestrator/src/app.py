@@ -5,6 +5,21 @@ import grpc
 import logging
 import uuid
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+# Set up OpenTelemetry Tracer for application-wide tracing
+trace.set_tracer_provider(TracerProvider())
+tracer = trace.get_tracer(__name__)
+
+# Configure OTLP exporter to send trace data to an observability backend
+otlp_exporter = OTLPSpanExporter(endpoint="http://observability:4317")
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
+
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 
 # utils_path_fraud = os.path.abspath(os.path.join(FILE, '../../../utils/pb/fraud_detection'))
@@ -330,6 +345,7 @@ order_executor_stub = order_executor_pb2_grpc.OrderExecutorStub(order_executor_c
 
 @app.route('/process_order', methods=['POST'])
 def process_order():
+    logging.info("Received order processing request")
     order_data = request.json
     book_id = order_data['book_id']
     quantity = order_data['quantity']
@@ -337,30 +353,38 @@ def process_order():
     price = quantity * 10  # Example price calculation
 
     # Prepare payment
+    logging.info(f"Preparing payment for book ID {book_id} at price {price}")
     prepare_response = payment_stub.Prepare(payment_pb2.PrepareRequest(orderId=str(book_id), amount=price))
     if not prepare_response.success:
+        logging.error("Failed to reserve funds for payment")
         return jsonify({"success": False, "message": "Failed to reserve funds for payment"}), 400
 
     # Execute order using the Order Executor
     try:
+        logging.info(f"Executing order for book ID {book_id}")
         execute_response = order_executor_stub.ExecuteOrder(
             order_executor_pb2.ExecuteOrderRequest(bookId=book_id, quantity=quantity, userId=user_id, price=price)
         )
         if execute_response.success:
             # Commit payment
+            logging.info("Order execution successful, committing payment")
             commit_response = payment_stub.Commit(payment_pb2.CommitRequest(orderId=str(book_id)))
             if commit_response.success:
+                logging.info("Payment committed successfully")
                 return jsonify({"success": True, "message": "Order processed and payment completed successfully"})
             else:
                 # Rollback payment if commit fails
+                logging.warning("Payment commit failed, rolling back")
                 payment_stub.Abort(payment_pb2.AbortRequest(orderId=str(book_id)))
                 return jsonify({"success": False, "message": "Failed to process payment after order execution"}), 400
         else:
             # Abort payment if order execution fails
+            logging.error(f"Order execution failed: {execute_response.message}")
             payment_stub.Abort(payment_pb2.AbortRequest(orderId=str(book_id)))
             return jsonify({"success": False, "message": execute_response.message}), 400
     except grpc.RpcError as e:
         # Abort payment if there is a gRPC error
+        logging.exception("gRPC error occurred during order processing")
         payment_stub.Abort(payment_pb2.AbortRequest(orderId=str(book_id)))
         return jsonify({"success": False, "message": str(e)}), 500
 
