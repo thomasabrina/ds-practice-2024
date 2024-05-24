@@ -1,6 +1,6 @@
 describe('Single Order Flow', () => {
   it('places a single non-fraudulent order', () => {
-    cy.visit('/order-page'); // Adjust URL as needed
+    cy.visit('/order-page'); 
     cy.get('#book-id').type('123');
     cy.get('#submit-order').click();
     cy.get('.order-success').should('contain', 'Order placed successfully');
@@ -24,7 +24,7 @@ describe('Conflicting Orders Flow', () => {
     cy.visit('/order-page');
     cy.get('#book-id').type('123');
     cy.get('#submit-order').click();
-    cy.get('#book-id').clear().type('123'); // Same book in quick succession
+    cy.get('#book-id').clear().type('123');
     cy.get('#submit-order').click();
     cy.get('.order-error').should('contain', 'Order conflict detected');
   });
